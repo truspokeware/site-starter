@@ -9,7 +9,8 @@
     "validate": "node scripts/validate.mjs",
     "check-kit": "node scripts/check-kit.mjs",
     "check": "npm run check-kit && npm run validate && node test/browser-checks.mjs",
-    "lighthouse": "lhci autorun"
+    "lighthouse": "lhci autorun",
+    "html": "html-validate '**/*.html'"
   },
   "devDependencies": {
     "@lhci/cli": "^0.14.0",

@@ -1,0 +1,19 @@
+title = "tsw-kit site-starter"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Not secrets: test fixtures and documented placeholder values."
+paths = [
+  '''node_modules/''',
+  '''vendor/''',
+  '''package-lock\.json''',
+  '''_headers''',
+  '''\.well-known/''',
+]
+regexes = [
+  '''407[-. ]?555[-. ]?0\d{3}''',
+  '''example\.com''',
+  '''truspokeware\.com''',
+]

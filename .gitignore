@@ -2,3 +2,5 @@ node_modules/
 .lighthouseci/
 .DS_Store
 *.log
+gitleaks
+.lighthouseci/

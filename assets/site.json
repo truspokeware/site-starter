@@ -1,0 +1,72 @@
+{
+  "$schema": "https://tsw.truspokeware.com/schemas/site-manifest-1.json",
+  "name": "Example Home Services",
+  "legalName": "Example Home Services LLC",
+  "url": "https://example.com",
+  "logo": "/assets/brand/logo.svg",
+  "description": "One sentence describing the business in plain language.",
+  "category": "plumber",
+  "primaryMarket": {
+    "name": "Sanford",
+    "region": "FL",
+    "type": "City"
+  },
+  "areaServed": [
+    {
+      "name": "Sanford",
+      "type": "City"
+    },
+    {
+      "name": "Lake Mary",
+      "type": "City"
+    },
+    {
+      "name": "Longwood",
+      "type": "City"
+    },
+    {
+      "name": "Oviedo",
+      "type": "City"
+    }
+  ],
+  "contact": {
+    "phone": "+1-407-555-0134",
+    "email": "hello@example.com",
+    "streetAddress": "2155 French Ave",
+    "addressLocality": "Sanford",
+    "addressRegion": "FL",
+    "postalCode": "32771",
+    "country": "US"
+  },
+  "hours": [
+    {
+      "days": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "opens": "07:00",
+      "closes": "18:00"
+    },
+    {
+      "days": [
+        "Saturday"
+      ],
+      "opens": "08:00",
+      "closes": "14:00"
+    }
+  ],
+  "services": [],
+  "social": [],
+  "trust": {
+    "aggregateRating": null,
+    "testimonials": []
+  },
+  "publish": {
+    "phoneVisible": true,
+    "addressVisible": false,
+    "hoursVisible": true
+  }
+}

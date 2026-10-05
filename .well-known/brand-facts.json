@@ -1,0 +1,42 @@
+{
+  "$comment": "Machine-readable canonical facts. Keep in sync with assets/site.json and the JSON-LD in index.html. See docs/decisions.md.",
+  "name": "Example Home Services",
+  "legalName": "Example Home Services LLC",
+  "url": "https://example.com/",
+  "logo": "https://example.com/assets/brand/logo.svg",
+  "founded": null,
+  "description": "Family-run plumbing company in Sanford, Florida offering same-day repairs with upfront pricing.",
+  "categories": [
+    "Plumber",
+    "Home services"
+  ],
+  "address": {
+    "locality": "Sanford",
+    "region": "FL",
+    "country": "US"
+  },
+  "phone": "+1-407-555-0134",
+  "email": "hello@example.com",
+  "areaServed": [
+    "Sanford",
+    "Lake Mary",
+    "Longwood",
+    "Oviedo"
+  ],
+  "hours": [
+    "Monday-Friday 07:00-18:00",
+    "Saturday 08:00-14:00"
+  ],
+  "services": [
+    "Leak repair",
+    "Drain clearing",
+    "Water heater repair and replacement"
+  ],
+  "credentials": {
+    "license": "FL-PCM1234",
+    "insured": true
+  },
+  "social": [],
+  "lastReviewed": "2026-10-05",
+  "sameAs": []
+}

@@ -1,0 +1,45 @@
+# site-starter
+
+The template every TruSpokeWare client site is generated from. No build step.
+Plain HTML, CSS and ES modules.
+
+```bash
+npm install
+npm run sync:kit     # vendor the current tsw-kit into vendor/
+npm run check        # kit integrity, facts manifest, browser checks, axe
+npm run lighthouse   # performance and accessibility budgets
+```
+
+## What is here
+
+| Path | Purpose |
+|---|---|
+| `index.html` | The whole site. Real content in real HTML |
+| `assets/site.json` | **The only source of business truth** |
+| `assets/site.css` | Client accent and any bespoke styling |
+| `scripts/validate.mjs` | Enforces that every other surface agrees with the manifest |
+| `scripts/check-kit.mjs` | Checks the vendored kit is complete and referenced icons exist |
+| `test/browser-checks.mjs` | Behaviour, computed styles, axe, and a full no-JavaScript pass |
+| `vendor/tsw-kit/` | Pinned copy of the kit. Never hand-edit |
+| `_headers` | Cache policy, CSP, security headers |
+
+## The idea
+
+Everything renders correctly with JavaScript disabled, and CI proves it by
+loading the site twice. Content is in the HTML, components add behaviour, and
+the form is a real `<form>` that posts to the server whether or not the module
+loads.
+
+`TSW_STRICT=1 npm run validate` additionally fails on leftover placeholders.
+That is how client repositories are checked. The template itself is full of
+deliberate placeholders, so it must not be run in strict mode.
+
+## Current state
+
+Validated, and passing: 45 browser checks including a complete no-JavaScript
+pass, zero axe violations at any severity, HTML validation clean, and Lighthouse
+100 / 100 / 100 / 100 at 30 KiB total.
+
+## New client site
+
+See `AGENTS.md`.

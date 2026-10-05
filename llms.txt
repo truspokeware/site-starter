@@ -1,0 +1,29 @@
+# Example Home Services
+
+> Family-run plumbing company in Sanford, Florida. Same-day repairs, upfront
+> pricing before work starts, two-year workmanship warranty. Licensed and
+> insured in Florida (FL-PCM1234).
+
+Primary market: Sanford, FL. Also serves Lake Mary, Longwood, Oviedo, and
+unincorporated Seminole County.
+
+## Pages
+
+- [Home](https://example.com/): services overview, service area, and contact form.
+- [Services](https://example.com/#services): leak repair, drain clearing, water heaters.
+- [Service area](https://example.com/#service-area): cities covered.
+- [About](https://example.com/#about): company background.
+- [Contact](https://example.com/#contact): quote request form.
+
+## Contact
+
+- Email: hello@example.com
+- Phone: listed on site
+- Address: listed on site
+
+## Canonical facts
+
+Full machine-readable record: https://example.com/.well-known/brand-facts.json
+
+This file is a briefing aid for AI agents and code tools. It is not a ranking
+factor and does not replace the sitemap, robots.txt, or normal crawlability.

@@ -1,0 +1,21 @@
+{
+  "name": "@truspokeware/site-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Template repo every TruSpokeWare client site is generated from. No build step.",
+  "scripts": {
+    "sync:kit": "node scripts/sync-kit.mjs",
+    "validate": "node scripts/validate.mjs",
+    "check-kit": "node scripts/check-kit.mjs",
+    "check": "npm run check-kit && npm run validate && node test/browser-checks.mjs",
+    "lighthouse": "lhci autorun"
+  },
+  "devDependencies": {
+    "@lhci/cli": "^0.14.0",
+    "@axe-core/playwright": "^4.10.0",
+    "axe-core": "^4.10.0",
+    "html-validate": "^9.0.0",
+    "playwright": "^1.49.0"
+  }
+}

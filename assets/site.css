@@ -1,0 +1,58 @@
+:root {
+  --tsw-accent-bg: #1d4ed8;
+  --tsw-accent-on: #ffffff;
+  --tsw-accent-ink: #1d4ed8;
+  --tsw-accent-soft: #dbeafe;
+}
+
+.tsw-grid {
+  display: grid;
+  gap: var(--tsw-space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.tsw-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tsw-space-xs);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tsw-pill-list li {
+  padding: var(--tsw-space-2xs) var(--tsw-space-md);
+  border: var(--tsw-border-w) solid var(--tsw-border);
+  border-radius: var(--tsw-radius-full);
+  background: var(--tsw-surface);
+  font-size: var(--tsw-text-sm);
+  color: var(--tsw-text-muted);
+}
+
+tsw-hero dl {
+  display: contents;
+}
+
+tsw-hero dl > div {
+  display: grid;
+  gap: var(--tsw-space-3xs);
+}
+
+tsw-hero dt {
+  font-family: var(--tsw-font-mono);
+  font-size: var(--tsw-text-2xs);
+  letter-spacing: var(--tsw-tracking-wider);
+  text-transform: uppercase;
+}
+
+tsw-hero dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tsw-accent-ink: #93c5fd;
+    --tsw-accent-soft: #172554;
+  }
+}

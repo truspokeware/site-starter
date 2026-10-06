@@ -4,3 +4,11 @@ node_modules/
 *.log
 gitleaks
 .lighthouseci/
+
+# Secrets. Never commit these.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.wrangler/

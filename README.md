@@ -34,6 +34,10 @@ loads.
 That is how client repositories are checked. The template itself is full of
 deliberate placeholders, so it must not be run in strict mode.
 
+A client repo whose README has to name the marker list can exempt just that file
+with `TSW_STRICT_EXEMPT=README.md`, rather than weakening the check for the
+whole repository.
+
 ## Current state
 
 Validated, and passing: 45 browser checks including a complete no-JavaScript

@@ -27,7 +27,9 @@ const read = (p) => readFile(join(ROOT, p), 'utf8');
 
 async function walk(dir, out = []) {
   for (const entry of await readdir(join(ROOT, dir), { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    // `.lighthouseci` holds generated HTML reports that quote these very markers
+    // from Lighthouse's own output, so walking it produces false positives.
+    if (['node_modules', '.git', '.lighthouseci', 'vendor', '.wrangler'].includes(entry.name)) continue;
     const rel = join(dir, entry.name);
     if (entry.isDirectory()) await walk(rel, out);
     else out.push(rel);
@@ -272,9 +274,14 @@ try {
 if (STRICT) {
   const files = await walk('.');
   const markers = [/lorem ipsum/i, /\bTODO\b/, /FIXME/, /example\.com/, /\bplaceholder\b/i, /\bTODO:/];
+  // Docs legitimately have to name the markers they are checked for. A repo can
+  // list its own exempt files here rather than the check being weakened.
+  const exempt = (process.env.TSW_STRICT_EXEMPT || '')
+    .split(',').map((f) => f.trim()).filter(Boolean);
   for (const f of files) {
     if (!['.html', '.json', '.md', '.txt', '.xml'].includes(extname(f))) continue;
     if (f.includes('site-starter')) continue;
+    if (exempt.some((x) => f === x || f.endsWith(x))) continue;
     const body = await readFile(join(ROOT, f), 'utf8');
     for (const m of markers) {
       const hit = body.match(m);

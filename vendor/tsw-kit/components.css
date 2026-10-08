@@ -613,6 +613,10 @@ form[is~="tsw-form"] fieldset[hidden] {
   display: none;
 }
 
+html[data-js] form[is~="tsw-form"] fieldset[data-tsw-branch]:not([data-tsw-branch-active="true"]) {
+  display: none;
+}
+
 form[is~="tsw-form"] .tsw-choice {
   display: flex;
   align-items: flex-start;

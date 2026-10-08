@@ -58,6 +58,10 @@ export class TswForm extends HTMLFormElement {
     this.#applyBranches();
   }
 
+  static markJsAvailable() {
+    document.documentElement.setAttribute('data-js', '');
+  }
+
   #applyBranches() {
     for (const fieldset of this.#branches) {
       const key = fieldset.getAttribute('data-tsw-branch');
@@ -71,6 +75,12 @@ export class TswForm extends HTMLFormElement {
 
       const matches = checked ? values.includes(checked.value) : false;
       fieldset.setAttribute('data-tsw-branch-active', String(matches));
+      // Toggle the real `hidden` attribute rather than relying on the
+      // `html[data-js]` CSS rule alone. That rule only applies if the page put
+      // `data-js` on <html> in an inline head script, and a page that forgets it
+      // renders the branch fieldset visible but disabled, which looks broken.
+      // This way the fieldset is hidden whenever the branch is inactive, with or
+      // without that opt-in, and still visible when there is no JS at all.
       fieldset.hidden = !matches;
 
       for (const control of fieldset.querySelectorAll(CONTROL)) {
@@ -246,3 +256,5 @@ export class TswForm extends HTMLFormElement {
 }
 
 customElements.define('tsw-form', TswForm, { extends: 'form' });
+
+if (document.documentElement.hasAttribute('data-js')) TswForm.markJsAvailable();

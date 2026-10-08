@@ -1,4 +1,10 @@
 import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
+
+// The one string this file asserts on comes from the manifest, so a client site
+// can rewrite every word of the page without editing the test.
+const site = JSON.parse(readFileSync(new URL('../assets/site.json', import.meta.url), 'utf8'));
+const EXPECTED_SERVICE = site.services?.[0]?.name || site.name;
 import { createServer } from 'node:http';
 import { readFile, stat, mkdir } from 'node:fs/promises';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
@@ -48,6 +54,9 @@ const browser = await chromium.launch();
 
 // ---------------------------------------------------------------- with JS ---
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+// Inject the manifest-derived string into the page before any script runs, so the
+// no-JS pass can read it too (init scripts still run with JS disabled).
+await ctx.addInitScript((svc) => { window.__tswExpectedService = svc; }, EXPECTED_SERVICE);
 const page = await ctx.newPage();
 const consoleErrors = [];
 const badRequests = [];
@@ -194,6 +203,7 @@ await ctx.close();
 
 // ------------------------------------------------------------- without JS ---
 const noJsCtx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
+await noJsCtx.addInitScript((svc) => { window.__tswExpectedService = svc; }, EXPECTED_SERVICE);
 const noJs = await noJsCtx.newPage();
 await noJs.goto(`${base}/`, { waitUntil: 'load' });
 await noJs.waitForTimeout(500);
@@ -205,7 +215,9 @@ const degraded = await noJs.evaluate(() => {
     h1Visible: vis(document.querySelector('h1')),
     navVisible: vis(document.querySelector('tsw-nav')),
     heroActions: document.querySelectorAll('tsw-hero [slot="actions"] a, tsw-hero [slot="actions"] button').length,
-    servicesText: document.body.innerText.includes('Leak repair'),
+    // Read an expected service name from the manifest rather than hardcoding
+    // template copy, so this test works in a client repo after the copy is rewritten.
+    servicesText: document.body.innerText.includes(window.__tswExpectedService),
     areaText: document.body.innerText.includes('Sanford'),
     phoneLink: Boolean(document.querySelector('a[href^="tel:"]')),
     branchesVisible: [...document.querySelectorAll('fieldset[data-tsw-branch]')].every((f) => !f.hidden),

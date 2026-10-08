@@ -14,13 +14,23 @@ const fail = (m) => errors.push(m);
 const warn = (m) => warns.push(m);
 const note = (m) => notes.push(m);
 
+// A site URL is not a file path. `/privacy` is served from `privacy.html`, and
+// `/services/` from `services/index.html`, so both have to resolve or every
+// extensionless link in the site looks broken and every real one is unverifiable.
 const exists = async (p) => {
-  try {
-    await stat(join(ROOT, p));
-    return true;
-  } catch {
-    return false;
+  const clean = p.replace(/^\/+|\/+$/g, '');
+  const candidates = clean === ''
+    ? ['index.html']
+    : [clean, `${clean}.html`, join(clean, 'index.html'), `${clean}/index.html`];
+  for (const c of candidates) {
+    try {
+      const st = await stat(join(ROOT, c));
+      if (st.isFile()) return true;
+    } catch {
+      /* try the next candidate */
+    }
   }
+  return false;
 };
 
 const read = (p) => readFile(join(ROOT, p), 'utf8');

@@ -11,7 +11,8 @@
     "check": "npm run check-kit && npm run validate && npm run html && node test/browser-checks.mjs",
     "lighthouse": "lhci autorun",
     "html": "html-validate '**/*.html'",
-    "validate:strict": "TSW_STRICT=1 node scripts/validate.mjs --pages index.html,privacy.html"
+    "validate:strict": "TSW_STRICT=1 node scripts/validate.mjs --pages index.html,privacy.html",
+    "check:headers": "node scripts/check-headers.mjs"
   },
   "devDependencies": {
     "@lhci/cli": "^0.14.0",

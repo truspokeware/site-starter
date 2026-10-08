@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>document.documentElement.setAttribute('data-js','')</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy | Example Home Services</title>
+<meta name="description" content="How Example Home Services collects and uses the information you send through this website, and how to have it corrected or deleted.">
+<link rel="canonical" href="https://example.com/privacy">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="importmap">
+{ "imports": { "@tsw/kit": "/vendor/tsw-kit/index.js" } }
+</script>
+<link rel="stylesheet" href="/vendor/tsw-kit/theme.css">
+<link rel="stylesheet" href="/vendor/tsw-kit/components.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="tsw-skip-link" href="#main">Skip to content</a>
+<header>
+<tsw-nav>
+  <a slot="brand" href="/"><img src="/assets/brand/logo.svg" alt="" width="30" height="30"><span>Example Home Services</span></a>
+  <ul slot="links">
+    <li><a href="/#services">Services</a></li>
+    <li><a href="/#contact">Contact</a></li>
+    <li><a href="/privacy">Privacy</a></li>
+  </ul>
+  <button slot="toggle" type="button" aria-label="Menu">
+    <tsw-icon name="menu-2" data-when="closed"></tsw-icon>
+    <tsw-icon name="x" data-when="open"></tsw-icon>
+  </button>
+  <div slot="panel">
+    <a href="/#services">Services</a>
+    <a href="/#contact">Contact</a>
+    <a href="/privacy">Privacy</a>
+  </div>
+</tsw-nav>
+</header>
+<main id="main">
+  <tsw-hero data-tone="sunken">
+    <p slot="eyebrow" class="tsw-eyebrow">Privacy</p>
+    <h1 slot="heading">What we do with what you send</h1>
+    <p slot="body">We use what you send through this site to give you a quote and to do the work. Nothing else.</p>
+  </tsw-hero>
+  <tsw-section data-width="narrow">
+    <div class="tsw-section__inner">
+      <div class="tsw-prose">
+        <h2>What we collect</h2>
+        <p>What you type into the contact form: your name, a phone number or email, the service address if you gave one, and a description of the problem. If you are an emergency, we use the number to call you back.</p>
+        <h2>Why we collect it</h2>
+        <p>To quote the job, to get there, and to keep a record of what was agreed. If we quote you, we keep that record for as long as the tax authorities require.</p>
+        <h2>What we never do</h2>
+        <ul>
+          <li>We do not sell your details.</li>
+          <li>We do not add you to a mailing list or a dialer.</li>
+          <li>We do not run advertising or tracking on this site.</li>
+        </ul>
+        <h2>How long we keep it</h2>
+        <p>Quotes that do not turn into work are deleted within 12 months. Work we did is kept for the records we are legally required to keep.</p>
+        <h2>Cookies</h2>
+        <p>None. This site sets no cookies and runs no tracking pixels.</p>
+        <h2>Asking us to change or delete something</h2>
+        <p>Email <a href="mailto:hello@example.com">hello@example.com</a> and we will correct or delete it. There is no account and no preference centre, because there is no account.</p>
+      </div>
+      <p class="tsw-note">Last updated 8 October 2026 &middot; <a href="mailto:hello@example.com">hello@example.com</a></p>
+    </div>
+  </tsw-section>
+</main>
+<footer>
+<tsw-footer>
+  <a slot="brand" href="/"><img src="/assets/brand/logo.svg" alt="" width="26" height="26"><span>Example Home Services</span></a>
+  <div slot="legal">
+    <span>&copy; <span data-tsw-year></span> Example Home Services LLC &middot; Licensed &amp; insured in Florida</span>
+    <a href="/privacy">Privacy</a>
+  </div>
+</tsw-footer>
+</footer>
+<script type="module" src="/assets/site.js"></script>
+</body>
+</html>

@@ -40,6 +40,17 @@ Validated, and passing: 45 browser checks including a complete no-JavaScript
 pass, zero axe violations at any severity, HTML validation clean, and Lighthouse
 100 / 100 / 100 / 100 at 30 KiB total.
 
+## Required before a client site goes live
+
+- **`404.html` must exist.** Without it, Pages serves `index.html` for any
+  unmatched path, so every dead link returns 200 and search engines index
+  duplicate URLs. CI fails if the file is missing.
+- **`privacy.html` and a nav link to it.** A contact form collecting personal
+  details needs to say what happens to them.
+- **`assets/site.json` fully populated**, with `publish.*Visible` set honestly.
+  Validation cross-checks every other surface against it, including a live check
+  that the phone number does not appear when `phoneVisible` is false.
+
 ## New client site
 
 See `AGENTS.md`.

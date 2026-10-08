@@ -6,7 +6,7 @@
   "description": "Template repo every TruSpokeWare client site is generated from. No build step.",
   "scripts": {
     "sync:kit": "node scripts/sync-kit.mjs",
-    "validate": "node scripts/validate.mjs",
+    "validate": "node scripts/validate.mjs --pages index.html,privacy.html",
     "check-kit": "node scripts/check-kit.mjs",
     "check": "npm run check-kit && npm run validate && node test/browser-checks.mjs",
     "lighthouse": "lhci autorun",

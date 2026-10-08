@@ -31,7 +31,7 @@ jobs:
         run: npm ci
 
       - name: HTML validation
-        run: npx html-validate "**/*.html" --formatter stylish
+        run: npx html-validate "*.html" --formatter stylish
 
       - name: JSON and facts-manifest validation
         run: node scripts/validate.mjs

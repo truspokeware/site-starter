@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>document.documentElement.setAttribute('data-js','')</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found | Example Home Services</title>
+<meta name="description" content="That page does not exist on this website. Start again from the home page, or call and tell us what you were looking for.">
+<meta name="robots" content="noindex, follow">
+
+<meta name="theme-color" content="#0a0c10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+<script type="importmap">
+{
+  "imports": {
+    "@tsw/kit": "/vendor/tsw-kit/index.js"
+  }
+}
+</script>
+<link rel="stylesheet" href="/vendor/tsw-kit/theme.css">
+<link rel="stylesheet" href="/vendor/tsw-kit/components.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="tsw-skip-link" href="#main">Skip to content</a>
+
+<header>
+<tsw-nav>
+  <a slot="brand" href="/">
+    <img src="/assets/brand/logo.svg" alt="" width="30" height="30">
+    <span>Example Home Services</span>
+  </a>
+  <ul slot="links">
+    <li><a href="/#what">What you get</a></li>
+    <li><a href="/#process">Process</a></li>
+    <li><a href="/#pricing">Pricing</a></li>
+  </ul>
+  <div slot="actions">
+    <tsw-button href="/start" data-variant="primary" data-size="sm">Get a free preview</tsw-button>
+  </div>
+  <button slot="toggle" type="button" aria-label="Menu">
+    <tsw-icon name="menu-2" data-when="closed"></tsw-icon>
+    <tsw-icon name="x" data-when="open"></tsw-icon>
+  </button>
+  <div slot="panel">
+    <a href="/#what">What you get</a>
+    <a href="/#process">Process</a>
+    <a href="/#pricing">Pricing</a>
+    <a href="/start">Get a free preview</a>
+  </div>
+</tsw-nav>
+</header>
+
+<main id="main">
+  <tsw-hero>
+    <p slot="eyebrow" class="tsw-eyebrow">404</p>
+    <h1 slot="heading">That page is not here.</h1>
+    <p slot="body">Either the address has a typo in it, or something moved without leaving a forwarding note. Either way, here is everything that does exist.</p>
+    <div slot="actions">
+      <tsw-button href="/" data-variant="primary" data-size="lg">
+        <tsw-icon name="arrow-left" size="sm"></tsw-icon>
+        <span>Back to the home page</span>
+      </tsw-button>
+      <tsw-button href="/start" data-variant="secondary" data-size="lg">Get a free preview</tsw-button>
+    </div>
+  </tsw-hero>
+
+  <tsw-section id="what-exists" data-tone="sunken" data-width="narrow">
+    <div class="tsw-section__inner">
+      <p slot="eyebrow" class="tsw-eyebrow">What does exist</p>
+      <h2 slot="heading">Every page on this site</h2>
+      <div class="tsw-grid">
+        <tsw-card>
+          <tsw-icon slot="icon" name="home" size="lg"></tsw-icon>
+          <h3 slot="title">Home</h3>
+          <p slot="body">Leak repair, drain clearing, and water heaters.</p>
+          <p slot="footer"><a href="/">Home</a></p>
+        </tsw-card>
+        <tsw-card>
+          <tsw-icon slot="icon" name="send" size="lg"></tsw-icon>
+          <h3 slot="title">Contact</h3>
+          <p slot="body">Request a quote. We reply within one business day.</p>
+          <p slot="footer"><a href="/#contact">Request a quote</a></p>
+        </tsw-card>
+        <tsw-card>
+          <tsw-icon slot="icon" name="shield-check" size="lg"></tsw-icon>
+          <h3 slot="title">Privacy</h3>
+          <p slot="body">What we collect from the form and how to have it deleted.</p>
+          <p slot="footer"><a href="/privacy">Privacy</a></p>
+        </tsw-card>
+      </div>
+    </div>
+  </tsw-section>
+
+  <tsw-cta data-variant="accent">
+    <h2 slot="heading">In a hurry?</h2>
+    <p slot="body">Call and we will pick up.</p>
+    <tsw-button href="tel:+14075550134" data-variant="primary">
+      <tsw-icon name="phone" size="sm"></tsw-icon>
+      <span>Call now</span>
+    </tsw-button>
+  </tsw-cta>
+</main>
+
+<footer>
+<tsw-footer>
+  <a slot="brand" href="/">
+    <img src="/assets/brand/logo.svg" alt="" width="26" height="26">
+    <span>Example Home Services</span>
+  </a>
+  <div slot="legal">
+    <span>&copy; <span data-tsw-year></span> Example Home Services LLC &middot; Licensed &amp; insured in Florida</span>
+    <a href="tel:+14075550134">(407) 555-0134</a>
+  </div>
+</tsw-footer>
+</footer>
+
+<script type="module" src="/assets/site.js"></script>
+</body>
+</html>

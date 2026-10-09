@@ -17,7 +17,10 @@ workspace `AGENTS.md`; this is the client-site subset.
    form submission still work.
 5. **One `<h1>`, real landmarks, `<form is="tsw-form">` for anything submitted.**
 6. **One primary market.** `areaServed` lists the rest. Two primary markets
-   splits local rankings and reads as careless.
+   splits local rankings and reads as careless. A site with no `areaServed` has
+   no primary market, and that is valid.
+7. **`demo: true` in the manifest for any fictional or demonstration site.** It
+   makes noindex and a blanket `Disallow: /` mandatory. It relaxes nothing else.
 
 ## Changing the template
 

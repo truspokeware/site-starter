@@ -1,10 +1,23 @@
 #!/usr/bin/env node
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { join, dirname, relative, extname, resolve } from 'node:path';
+import { join, dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STRICT = process.env.TSW_STRICT === '1';
+
+const arg = (name, fallback) => {
+  const argv = process.argv.slice(2);
+  const eq = argv.find((a) => a.startsWith(`--${name}=`));
+  if (eq) return eq.slice(name.length + 3);
+  const i = argv.indexOf(`--${name}`);
+  if (i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--')) return argv[i + 1];
+  return fallback;
+};
+
+const MANIFEST = arg('manifest', 'assets/site.json');
+const PAGES = arg('pages', 'index.html').split(',').map((p) => p.trim()).filter(Boolean);
+const HOSTS_OVERRIDE = arg('hosts', '').split(',').map((h) => h.trim()).filter(Boolean);
 
 const errors = [];
 const warns = [];
@@ -18,7 +31,7 @@ const note = (m) => notes.push(m);
 // `/services/` from `services/index.html`, so both have to resolve or every
 // extensionless link in the site looks broken and every real one is unverifiable.
 const exists = async (p) => {
-  const clean = p.replace(/^\/+|\/+$/g, '');
+  const clean = p.split(/[?#]/)[0].replace(/^\/+|\/+$/g, '');
   const candidates = clean === ''
     ? ['index.html']
     : [clean, `${clean}.html`, join(clean, 'index.html'), `${clean}/index.html`];
@@ -35,11 +48,32 @@ const exists = async (p) => {
 
 const read = (p) => readFile(join(ROOT, p), 'utf8');
 
+// A page argument may be a file, a directory URL, or an extensionless route.
+// Resolve it the way a server would, so the validator accepts exactly the paths
+// the site actually serves and rejects the ones it does not.
+const readPage = async (p) => {
+  const clean = p.replace(/^\/+|\/+$/g, '');
+  const candidates = clean === ''
+    ? ['index.html']
+    : [clean, `${clean}.html`, join(clean, 'index.html'), `${clean}/index.html`];
+  for (const c of candidates) {
+    try {
+      const st = await stat(join(ROOT, c));
+      if (st.isFile()) return read(c);
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  return null;
+};
+
+const SKIP_DIRS = ['node_modules', '.git', '.lighthouseci', 'vendor', '.wrangler', 'test-results', 'playwright-report'];
+
 async function walk(dir, out = []) {
   for (const entry of await readdir(join(ROOT, dir), { withFileTypes: true })) {
     // `.lighthouseci` holds generated HTML reports that quote these very markers
     // from Lighthouse's own output, so walking it produces false positives.
-    if (['node_modules', '.git', '.lighthouseci', 'vendor', '.wrangler'].includes(entry.name)) continue;
+    if (SKIP_DIRS.includes(entry.name)) continue;
     const rel = join(dir, entry.name);
     if (entry.isDirectory()) await walk(rel, out);
     else out.push(rel);
@@ -70,28 +104,104 @@ const containsNumber = (haystack, digits) => {
   });
 };
 
+// Hosts the validator may check live. Derived from the manifest so one file works
+// for an apex domain, a subdomain, and every Pages project, rather than asserting
+// one site's origins in a template that generates all of them.
+const PLACEHOLDER_HOSTS = new Set(['example.com', 'www.example.com']);
+
+const hostOf = (url) => {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+};
+
+async function checkLiveHosts(hosts) {
+  if (process.env.TSW_SKIP_LIVE === '1') {
+    note('live host check skipped: TSW_SKIP_LIVE=1');
+    return;
+  }
+  if (process.env.CI || process.env.GITHUB_ACTIONS) {
+    // GitHub's runner IPs are blocked at the edge by bot protection, so this
+    // reports 403 from CI regardless of the site's health.
+    note('live host check skipped on CI: runner IPs are edge-blocked');
+    return;
+  }
+  if (!hosts.length) {
+    note('live host check skipped: no deployed host in the manifest');
+    return;
+  }
+
+  let served = 0;
+  for (const host of hosts) {
+    for (const file of PAGES) {
+      const route = file === 'index.html' || file === '' ? '/' : `/${file.replace(/\.html$/, '')}`;
+      let code = 'ERR';
+      try {
+        const res = await fetch(`https://${host}${route}`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+        code = res.status;
+      } catch (err) {
+        code = `ERR ${err.name}`;
+      }
+      if (code !== 200) fail(`live https://${host}${route} returned ${code}`);
+      else served++;
+    }
+  }
+  if (served === hosts.length * PAGES.length) {
+    note(`${hosts.length} host(s) serve 200 on ${PAGES.length} page(s) (${served} checks)`);
+  }
+
+  // A soft 404 is worse than no page at all: the visitor sees the homepage and
+  // search engines index infinite duplicate URLs. Pages serves index.html for any
+  // unmatched path unless a 404 document exists, so this asserts it does not.
+  for (const host of hosts) {
+    let soft = null;
+    try {
+      const res = await fetch(`https://${host}/tsw-definitely-not-a-real-path`, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(8000)
+      });
+      soft = res.status;
+    } catch (err) {
+      soft = `ERR ${err.name}`;
+    }
+    if (soft !== 404) fail(`${host} returns ${soft} for an unknown path, expected 404 (soft 404)`);
+  }
+  if (!errors.some((e) => e.includes('soft 404'))) note('unknown paths return a real 404');
+}
+
 // ---------------------------------------------------------------------------
 
-const REQUIRED_SITE_KEYS = ['name', 'url', 'description', 'category', 'primaryMarket', 'areaServed', 'contact', 'hours', 'publish'];
+const REQUIRED_SITE_KEYS = ['name', 'url', 'description', 'category', 'contact', 'hours', 'publish'];
+
+// Local SEO needs exactly one primary market, but only a business with a service
+// area has one at all. A site that serves no defined area, or serves a region
+// rather than a town, legitimately has neither key.
+const LOCAL_SITE_KEYS = ['primaryMarket', 'areaServed'];
 
 let site = null;
-let html = '';
 let facts = null;
 let ld = null;
+const pageHtml = {};
 
 try {
-  site = JSON.parse(await read('assets/site.json'));
-  note('assets/site.json parses');
+  site = JSON.parse(await read(MANIFEST));
+  note(`${MANIFEST} parses`);
 } catch (err) {
-  fail(`assets/site.json is not valid JSON: ${err.message}`);
+  fail(`${MANIFEST} is not valid JSON: ${err.message}`);
 }
 
-try {
-  html = await read('index.html');
-  note('index.html reads');
-} catch {
-  fail('index.html is missing');
+for (const page of PAGES) {
+  const body = await readPage(page);
+  if (body === null) fail(`${page} is missing`);
+  else {
+    pageHtml[page] = body;
+    note(`${page} reads`);
+  }
 }
+
+const html = pageHtml[PAGES[0]] ?? '';
 
 try {
   facts = JSON.parse(await read('.well-known/brand-facts.json'));
@@ -100,13 +210,20 @@ try {
   fail(`.well-known/brand-facts.json is not valid JSON: ${err.message}`);
 }
 
+const isDemo = site?.demo === true;
+
 if (site) {
   for (const key of REQUIRED_SITE_KEYS) {
-    if (!(key in site)) fail(`assets/site.json is missing required key "${key}"`);
+    if (!(key in site)) fail(`${MANIFEST} is missing required key "${key}"`);
   }
-  if (site.url && !/^https:\/\//.test(site.url)) fail(`assets/site.json url must be https, got "${site.url}"`);
+  if (site.url && !/^https:\/\//.test(site.url)) fail(`${MANIFEST} url must be https, got "${site.url}"`);
   if (site.description && site.description.length > 300) {
-    warn(`assets/site.json description is ${site.description.length} chars; keep it under 300`);
+    warn(`${MANIFEST} description is ${site.description.length} chars; keep it under 300`);
+  }
+  if (site.areaServed) {
+    for (const key of LOCAL_SITE_KEYS) {
+      if (!(key in site)) fail(`${MANIFEST} has areaServed but is missing "${key}"`);
+    }
   }
 }
 
@@ -121,20 +238,32 @@ const canonical = html.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"'
   || html.match(/<link[^>]+href=["']([^"']+)["'][^>]*rel=["']canonical["']/i);
 if (!canonical) fail('index.html is missing a rel="canonical" link');
 else if (site && normalizeUrl(canonical[1]) !== normalizeUrl(site.url)) {
-  fail(`canonical "${canonical[1]}" does not match site.json url "${site.url}"`);
-} else note(`canonical matches site.json url (${canonical?.[1]})`);
+  fail(`canonical "${canonical[1]}" does not match ${MANIFEST} url "${site.url}"`);
+} else note(`canonical matches ${MANIFEST} url (${canonical?.[1]})`);
 
-const desc = html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i);
-if (!desc) fail('index.html is missing a meta description');
-else {
-  const len = desc[1].length;
-  if (len < 70) fail(`meta description is only ${len} chars; aim for 110-160`);
-  else if (len > 175) warn(`meta description is ${len} chars; Google truncates past roughly 160`);
-  else note(`meta description is ${len} chars`);
+for (const [page, body] of Object.entries(pageHtml)) {
+  const d = body.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if (!d) {
+    fail(`${page} is missing a meta description`);
+    continue;
+  }
+  const len = d[1].length;
+  if (len < 70) fail(`${page} meta description is only ${len} chars; aim for 110-160`);
+  else if (len > 160) fail(`${page} meta description is ${len} chars; Google truncates past about 160`);
+  else note(`${page} meta description is ${len} chars`);
 }
 
-if (/<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html)) {
-  fail('index.html sets a noindex directive');
+const noindex = /<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html);
+
+// A demonstration site must not compete with a real client for the same local
+// queries, so it declares itself in the manifest and is held to the opposite
+// rule: noindex required, and the crawler policy has to actually block.
+if (noindex && !isDemo) {
+  fail('index.html sets a noindex directive; a live client site must be indexable');
+} else if (isDemo && !noindex) {
+  fail(`${MANIFEST} declares demo: true, so index.html must set a noindex directive`);
+} else if (isDemo) {
+  note('demo site: noindex is required and present');
 }
 
 if (!/<html[^>]+lang=["'][a-z]{2}/i.test(html)) fail('index.html <html> element is missing a lang attribute');
@@ -162,21 +291,27 @@ function ldNode(type) {
   return ld['@graph'].find((n) => Array.isArray(n['@type']) ? n['@type'].includes(type) : n['@type'] === type) || null;
 }
 
+// A local business is a LocalBusiness, a Plumber, or one of the other LocalBusiness
+// subtypes. Anything serving beyond one market is an Organization. Both name the
+// same facts, so both get checked against the manifest rather than one passing
+// unchecked.
+const BUSINESS_TYPES = ['LocalBusiness', 'Plumber', 'Organization', 'ProfessionalService', 'HomeAndConstructionBusiness'];
+
 if (ld) {
-  const local = ldNode('LocalBusiness') || ldNode('Plumber');
-  if (!local) fail('JSON-LD has no LocalBusiness or Plumber node');
+  const business = BUSINESS_TYPES.map(ldNode).find(Boolean) || null;
+  if (!business) fail(`JSON-LD has no business node; expected one of ${BUSINESS_TYPES.join(', ')}`);
   else if (site) {
-    if (text(local.name) !== text(site.name)) fail(`JSON-LD name "${local.name}" != site.json name "${site.name}"`);
-    if (local.url && normalizeUrl(local.url) !== normalizeUrl(site.url)) fail(`JSON-LD url "${local.url}" != site.json url "${site.url}"`);
-    if (text(local.telephone || '') !== text(site.contact?.phone || '')) {
-      fail(`JSON-LD telephone "${local.telephone}" != site.json contact.phone "${site.contact?.phone}"`);
+    if (text(business.name) !== text(site.name)) fail(`JSON-LD name "${business.name}" != ${MANIFEST} name "${site.name}"`);
+    if (business.url && normalizeUrl(business.url) !== normalizeUrl(site.url)) fail(`JSON-LD url "${business.url}" != ${MANIFEST} url "${site.url}"`);
+    if (text(business.telephone || '') !== text(site.contact?.phone || '')) {
+      fail(`JSON-LD telephone "${business.telephone}" != ${MANIFEST} contact.phone "${site.contact?.phone}"`);
     }
     const asList = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
-    const ldHours = (local.openingHoursSpecification || []).map((h) => `${asList(h.dayOfWeek).join(',')}:${h.opens}-${h.closes}`).sort();
+    const ldHours = (business.openingHoursSpecification || []).map((h) => `${asList(h.dayOfWeek).join(',')}:${h.opens}-${h.closes}`).sort();
     const siteHours = (site.hours || []).map((h) => `${asList(h.days).join(',')}:${h.opens}-${h.closes}`).sort();
     if (JSON.stringify(ldHours) !== JSON.stringify(siteHours)) {
-      fail(`JSON-LD openingHoursSpecification does not match site.json hours\n    ld:   ${JSON.stringify(ldHours)}\n    json: ${JSON.stringify(siteHours)}`);
-    } else note('JSON-LD hours match site.json');
+      fail(`JSON-LD openingHoursSpecification does not match ${MANIFEST} hours\n    ld:   ${JSON.stringify(ldHours)}\n    json: ${JSON.stringify(siteHours)}`);
+    } else note(`JSON-LD hours match ${MANIFEST}`);
   }
   if (!ldNode('WebSite')) warn('JSON-LD has no WebSite node');
 }
@@ -184,14 +319,14 @@ if (ld) {
 // aggregateRating must never be fabricated
 const agg = JSON.stringify(ld || {}).match(/"aggregateRating"[\s\S]{0,200}?"ratingValue"\s*:\s*"?[\d.]+/);
 if (agg && !site?.trust?.aggregateRating) {
-  fail('JSON-LD contains an aggregateRating but site.json trust.aggregateRating is null; never fabricate review data');
+  fail(`JSON-LD contains an aggregateRating but ${MANIFEST} trust.aggregateRating is null; never fabricate review data`);
 }
 
 // facts manifest vs site.json
 if (facts && site) {
-  if (text(facts.name) !== text(site.name)) fail(`brand-facts.json name "${facts.name}" != site.json "${site.name}"`);
-  if (normalizeUrl(facts.url) !== normalizeUrl(site.url)) fail(`brand-facts.json url "${facts.url}" != site.json "${site.url}"`);
-  if (text(facts.email) !== text(site.contact?.email)) fail(`brand-facts.json email != site.json contact.email`);
+  if (text(facts.name) !== text(site.name)) fail(`brand-facts.json name "${facts.name}" != ${MANIFEST} "${site.name}"`);
+  if (normalizeUrl(facts.url) !== normalizeUrl(site.url)) fail(`brand-facts.json url "${facts.url}" != ${MANIFEST} url "${site.url}"`);
+  if (text(facts.email) !== text(site.contact?.email)) fail(`brand-facts.json email != ${MANIFEST} contact.email`);
   const servedFacts = (facts.areaServed || []).map(normalizeUrl).sort();
   const servedSite = (site.areaServed || []).map((a) => normalizeUrl(a.name)).sort();
   if (JSON.stringify(servedFacts) !== JSON.stringify(servedSite)) fail('brand-facts.json areaServed does not match site.json areaServed');
@@ -201,7 +336,7 @@ if (facts && site) {
 
 // one primary market
 if (site?.areaServed?.length && !site.primaryMarket) {
-  fail('site.json has areaServed entries but no primaryMarket; local SEO needs exactly one');
+  fail(`${MANIFEST} has areaServed entries but no primaryMarket; local SEO needs exactly one`);
 }
 if (site?.primaryMarket && site.areaServed?.length) {
   const primary = normalizeUrl(site.primaryMarket.name);
@@ -210,7 +345,7 @@ if (site?.primaryMarket && site.areaServed?.length) {
   }
 }
 
-// privacy gates: do not publish what site.json says is unpublished
+// privacy gates: do not publish what the manifest says is unpublished
 if (site?.publish) {
   const bodyText = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<[^>]+>/g, ' ');
   if (site.publish.phoneVisible === false && site.contact?.phone) {
@@ -221,7 +356,7 @@ if (site?.publish) {
   }
   if (site.publish.addressVisible === false && site.contact?.streetAddress) {
     if (bodyText.includes(site.contact.streetAddress)) {
-      fail('publish.addressVisible is false but the street address appears in visible HTML');
+      fail(`publish.addressVisible is false but the street address appears in visible HTML`);
     }
   }
 }
@@ -234,15 +369,22 @@ for (const a of new Set(anchors)) {
 }
 if (anchors.length) note(`${new Set(anchors).size} in-page anchors resolve`);
 
-// local asset references
-const localRefs = [...html.matchAll(/(?:src|href)=["'](\/[^"'#?]*)/g)].map((m) => m[1]);
-const missing = [];
-for (const ref of new Set(localRefs)) {
-  const p = decodeURIComponent(ref);
-  if (p === '/') continue;
-  if (!(await exists(p))) missing.push(p);
+// Local asset references. This must run for every page, not just the first:
+// an earlier version read the single `html` variable, so links appearing only on
+// later pages were never checked. That is how /privacy shipped as a dead link on
+// the intake form while validation reported success.
+let refsChecked = 0;
+for (const [page, body] of Object.entries(pageHtml)) {
+  const refs = [...body.matchAll(/(?:src|href)=["'](\/[^"'#?]*)/g)].map((m) => decodeURIComponent(m[1]));
+  const missing = [];
+  for (const ref of new Set(refs)) {
+    if (ref === '/') continue;
+    refsChecked++;
+    if (!(await exists(ref))) missing.push(ref);
+  }
+  for (const m of missing) fail(`${page} references ${m} which does not exist`);
 }
-for (const m of missing) fail(`index.html references ${m} which does not exist`);
+if (refsChecked) note(`${refsChecked} local references across ${Object.keys(pageHtml).length} page(s) resolve`);
 
 // required files
 for (const f of ['robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'assets/site.css', 'assets/site.js', 'favicon.svg', 'site.webmanifest']) {
@@ -254,31 +396,42 @@ try {
   for (const agent of ['OAI-SearchBot', 'PerplexityBot', 'ClaudeBot', 'Googlebot']) {
     if (!new RegExp(`User-agent:\\s*${agent}`, 'i').test(robots)) fail(`robots.txt has no explicit policy for ${agent}`);
   }
-  if (!/Sitemap:/i.test(robots)) fail('robots.txt has no Sitemap directive');
+  if (isDemo) {
+    // noindex alone still leaves the URL as a bare result, so the crawler policy
+    // has to carry a blanket Disallow too.
+    const blanket = robots.match(/User-agent:\s*\*([\s\S]*?)(?=\nUser-agent:|$)/i);
+    if (!blanket || !/^\s*Disallow:\s*\/\s*$/m.test(blanket[1])) {
+      fail('robots.txt must Disallow: / for all crawlers while the manifest declares demo: true');
+    } else note('demo site: robots.txt disallows everything');
+  } else if (!/Sitemap:/i.test(robots)) {
+    fail('robots.txt has no Sitemap directive');
+  }
   if (!/GPTBot[\s\S]*?Disallow/i.test(robots)) warn('robots.txt does not block the GPTBot training crawler');
   note('robots.txt sets an explicit AI-crawler policy');
 } catch {}
 
 // sitemap base URL
-try {
-  const sitemap = await read('sitemap.xml');
-  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  if (!locs.length) fail('sitemap.xml has no <loc> entries');
-  else if (site && normalizeUrl(locs[0]) !== normalizeUrl(site.url)) {
-    fail(`sitemap first <loc> "${locs[0]}" != site.json url "${site.url}"`);
-  }
-  for (const loc of locs) {
-    if (/\/index\.html$/i.test(loc)) fail(`sitemap.xml contains a raw index.html URL: ${loc}`);
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  if (!/<lastmod>/.test(sitemap)) warn('sitemap.xml has no <lastmod> values; freshness signals matter for answer engines');
-  else if (!sitemap.includes(today) && new RegExp(`<lastmod>(\\d{4}-\\d{2}-\\d{2})`).test(sitemap)) {
-    const first = sitemap.match(/<lastmod>([^<]+)<\/lastmod>/)[1];
-    const age = (Date.now() - Date.parse(first)) / 86400000;
-    if (age > 60) warn(`sitemap.xml lastmod "${first}" is ${Math.round(age)} days old`);
-  }
-  note(`sitemap.xml has ${locs.length} entr${locs.length === 1 ? 'y' : 'ies'}`);
-} catch {}
+if (!isDemo) {
+  try {
+    const sitemap = await read('sitemap.xml');
+    const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    if (!locs.length) fail('sitemap.xml has no <loc> entries');
+    else if (site && normalizeUrl(locs[0]) !== normalizeUrl(site.url)) {
+      fail(`sitemap first <loc> "${locs[0]}" != ${MANIFEST} url "${site.url}"`);
+    }
+    for (const loc of locs) {
+      if (/\/index\.html$/i.test(loc)) fail(`sitemap.xml contains a raw index.html URL: ${loc}`);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (!/<lastmod>/.test(sitemap)) warn('sitemap.xml has no <lastmod> values; freshness signals matter for answer engines');
+    else if (!sitemap.includes(today) && new RegExp(`<lastmod>(\\d{4}-\\d{2}-\\d{2})`).test(sitemap)) {
+      const first = sitemap.match(/<lastmod>([^<]+)<\/lastmod>/)[1];
+      const age = (Date.now() - Date.parse(first)) / 86400000;
+      if (age > 60) warn(`sitemap.xml lastmod "${first}" is ${Math.round(age)} days old`);
+    }
+    note(`sitemap.xml has ${locs.length} entr${locs.length === 1 ? 'y' : 'ies'}`);
+  } catch {}
+}
 
 // strict mode: no placeholders left
 if (STRICT) {
@@ -290,7 +443,6 @@ if (STRICT) {
     .split(',').map((f) => f.trim()).filter(Boolean);
   for (const f of files) {
     if (!['.html', '.json', '.md', '.txt', '.xml'].includes(extname(f))) continue;
-    if (f.includes('site-starter')) continue;
     if (exempt.some((x) => f === x || f.endsWith(x))) continue;
     const body = await readFile(join(ROOT, f), 'utf8');
     for (const m of markers) {
@@ -300,6 +452,12 @@ if (STRICT) {
   }
   note('strict mode: no placeholders found');
 }
+
+const manifestHost = site?.url ? hostOf(site.url) : null;
+const liveHosts = (HOSTS_OVERRIDE.length ? HOSTS_OVERRIDE : manifestHost ? [manifestHost] : [])
+  .filter((h) => !PLACEHOLDER_HOSTS.has(h.toLowerCase()));
+
+await checkLiveHosts(liveHosts);
 
 report();
 

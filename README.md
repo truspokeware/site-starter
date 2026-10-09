@@ -44,6 +44,58 @@ Validated, and passing: 45 browser checks including a complete no-JavaScript
 pass, zero axe violations at any severity, HTML validation clean, and Lighthouse
 100 / 100 / 100 / 100 at 30 KiB total.
 
+## 0.2.0
+
+- Multi-page validation via `--pages=`, including per-page meta descriptions and
+  per-page local reference checking
+- Live host and soft-404 checks, with hosts derived from the manifest rather
+  than hardcoded, and skipped on CI where runner IPs are edge-blocked
+- `Organization`, `ProfessionalService` and `HomeAndConstructionBusiness`
+  accepted as business JSON-LD types
+- `primaryMarket` and `areaServed` required only when `areaServed` is present
+- `demo: true` inverts the indexing rules: noindex required, blanket
+  `Disallow: /` required, sitemap checks skipped
+
+## Multi-page and non-local sites
+
+`npm run validate` takes `--pages=index.html,privacy.html` and checks every page
+listed, not only the first. This matters more than it looks: an earlier version
+read one `html` variable, so a link appearing only on a later page was never
+checked. That is how `/privacy` shipped as a dead link on a form while validation
+reported success.
+
+The live host check derives its hosts from `assets/site.json` `url`, so the same
+file works for an apex domain, a subdomain, or a Pages project without editing.
+Pass `--hosts=a.example.com,b.example.com` when a site answers on more than one,
+and `TSW_SKIP_LIVE=1` to skip the network entirely. It is skipped automatically
+on CI, because GitHub's runner IPs are edge-blocked by bot protection.
+
+### Not every site is local
+
+`primaryMarket` and `areaServed` are required **only when `areaServed` is
+present**, so a site with no defined service area is a valid site rather than a
+broken one. The one-primary-market rule is unchanged for sites that do have one.
+
+The JSON-LD check accepts `Organization`, `ProfessionalService`,
+`HomeAndConstructionBusiness` alongside `LocalBusiness` and `Plumber`. Whichever
+is used, its `name`, `url`, `telephone` and `openingHoursSpecification` are still
+cross-checked against the manifest. The `aggregateRating` fabrication guard is
+not affected by this and still fails.
+
+### Demonstration sites
+
+A fictional or demonstration site must not compete with a real client for the
+same local queries. Set `demo: true` in `assets/site.json`, which inverts the
+indexing rules rather than weakening them:
+
+- `noindex` becomes **required** instead of forbidden
+- `robots.txt` must carry a blanket `Disallow: /`, so the URL does not appear as
+  a bare result
+- the sitemap checks are skipped, because a noindex site should not advertise one
+
+Nothing else changes. Every manifest cross-check still applies, so a demo site
+cannot carry a fact the manifest does not.
+
 ## Required before a client site goes live
 
 - **`404.html` must exist.** Without it, Pages serves `index.html` for any

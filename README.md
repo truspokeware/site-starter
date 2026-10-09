@@ -53,7 +53,7 @@ pass, zero axe violations at any severity, HTML validation clean, and Lighthouse
 - `Organization`, `ProfessionalService` and `HomeAndConstructionBusiness`
   accepted as business JSON-LD types
 - `primaryMarket` and `areaServed` required only when `areaServed` is present
-- `demo: true` inverts the indexing rules: noindex required, blanket
+- A `demo` declaration inverts the indexing rules: noindex required, blanket
   `Disallow: /` required, sitemap checks skipped
 
 ## Multi-page and non-local sites
@@ -85,8 +85,18 @@ not affected by this and still fails.
 ### Demonstration sites
 
 A fictional or demonstration site must not compete with a real client for the
-same local queries. Set `demo: true` in `assets/site.json`, which inverts the
-indexing rules rather than weakening them:
+same local queries. Declare it in `assets/site.json`, which inverts the indexing
+rules rather than weakening them:
+
+```json
+"demo": {
+  "isSample": true,
+  "note": "Fictional business used to demonstrate the template. The phone number, email domain and address are placeholders. Do not call it."
+}
+```
+
+`"demo": true` also works. Prefer the object, because the note is a business fact
+and belongs in the manifest with the rest of them. Either form means:
 
 - `noindex` becomes **required** instead of forbidden
 - `robots.txt` must carry a blanket `Disallow: /`, so the URL does not appear as

@@ -210,7 +210,11 @@ try {
   fail(`.well-known/brand-facts.json is not valid JSON: ${err.message}`);
 }
 
-const isDemo = site?.demo === true;
+// A demo site may declare itself as a bare boolean, or as an object carrying the
+// disclaimer text. The object form is preferred because the note belongs in the
+// manifest, the same place every other business fact lives.
+const demoFlag = site?.demo;
+const isDemo = demoFlag === true || (demoFlag && typeof demoFlag === 'object' && demoFlag.isSample === true);
 
 if (site) {
   for (const key of REQUIRED_SITE_KEYS) {
@@ -261,7 +265,7 @@ const noindex = /<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i.t
 if (noindex && !isDemo) {
   fail('index.html sets a noindex directive; a live client site must be indexable');
 } else if (isDemo && !noindex) {
-  fail(`${MANIFEST} declares demo: true, so index.html must set a noindex directive`);
+  fail(`${MANIFEST} declares this a demo site, so index.html must set a noindex directive`);
 } else if (isDemo) {
   note('demo site: noindex is required and present');
 }
@@ -401,7 +405,7 @@ try {
     // has to carry a blanket Disallow too.
     const blanket = robots.match(/User-agent:\s*\*([\s\S]*?)(?=\nUser-agent:|$)/i);
     if (!blanket || !/^\s*Disallow:\s*\/\s*$/m.test(blanket[1])) {
-      fail('robots.txt must Disallow: / for all crawlers while the manifest declares demo: true');
+      fail('robots.txt must Disallow: / for all crawlers while the manifest declares this a demo site');
     } else note('demo site: robots.txt disallows everything');
   } else if (!/Sitemap:/i.test(robots)) {
     fail('robots.txt has no Sitemap directive');

@@ -441,6 +441,15 @@ if (!isDemo) {
 if (STRICT) {
   const files = await walk('.');
   const markers = [/lorem ipsum/i, /\bTODO\b/, /FIXME/, /example\.com/, /\bplaceholder\b/i, /\bTODO:/];
+  // A form hint is not leftover filler. `<input placeholder="example.com">` is
+  // telling a visitor what to type. The whole attribute goes, because the
+  // attribute's own name contains the word "placeholder" and would match on
+  // every form even with an innocent value. Body copy, JSON-LD and every other
+  // surface stay strict, so a real leftover is still caught.
+  const stripFieldHints = (body) => body.replace(
+    /\s(?:placeholder|title|aria-label|alt)\s*=\s*("[^"]*"|'[^']*')/gi,
+    ''
+  );
   // Docs legitimately have to name the markers they are checked for. A repo can
   // list its own exempt files here rather than the check being weakened.
   const exempt = (process.env.TSW_STRICT_EXEMPT || '')
@@ -448,7 +457,8 @@ if (STRICT) {
   for (const f of files) {
     if (!['.html', '.json', '.md', '.txt', '.xml'].includes(extname(f))) continue;
     if (exempt.some((x) => f === x || f.endsWith(x))) continue;
-    const body = await readFile(join(ROOT, f), 'utf8');
+    const raw = await readFile(join(ROOT, f), 'utf8');
+    const body = extname(f) === '.html' ? stripFieldHints(raw) : raw;
     for (const m of markers) {
       const hit = body.match(m);
       if (hit) fail(`strict mode: ${f} still contains "${hit[0]}"`);

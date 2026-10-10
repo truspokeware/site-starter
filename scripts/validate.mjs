@@ -173,7 +173,12 @@ async function checkLiveHosts(hosts) {
 
 // ---------------------------------------------------------------------------
 
-const REQUIRED_SITE_KEYS = ['name', 'url', 'description', 'category', 'contact', 'hours', 'publish'];
+// `contact` and `hours` are deliberately absent. A utility that converts a
+// photograph to a PDF has no phone, no address and no opening hours, and forcing
+// the keys to exist as `null` teaches authors to satisfy a check rather than
+// describe a business. Every reader of these two keys is already optional-chained,
+// so a site that omits them entirely checks exactly as a site that nulls them.
+const REQUIRED_SITE_KEYS = ['name', 'url', 'description', 'category', 'publish'];
 
 // Local SEO needs exactly one primary market, but only a business with a service
 // area has one at all. A site that serves no defined area, or serves a region
@@ -299,7 +304,7 @@ function ldNode(type) {
 // subtypes. Anything serving beyond one market is an Organization. Both name the
 // same facts, so both get checked against the manifest rather than one passing
 // unchecked.
-const BUSINESS_TYPES = ['LocalBusiness', 'Plumber', 'Organization', 'ProfessionalService', 'HomeAndConstructionBusiness'];
+const BUSINESS_TYPES = ['LocalBusiness', 'Plumber', 'Organization', 'ProfessionalService', 'HomeAndConstructionBusiness', 'WebApplication', 'SoftwareApplication'];
 
 if (ld) {
   const business = BUSINESS_TYPES.map(ldNode).find(Boolean) || null;

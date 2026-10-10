@@ -44,6 +44,16 @@ Validated, and passing: 45 browser checks including a complete no-JavaScript
 pass, zero axe violations at any severity, HTML validation clean, and Lighthouse
 100 / 100 / 100 / 100 at 30 KiB total.
 
+## 0.3.0
+
+- `contact` and `hours` are optional manifest keys, so a site with neither, such
+  as a utility, does not have to write nulls to satisfy the validator
+- `WebApplication` and `SoftwareApplication` accepted as JSON-LD types
+- Browser checks discover the form rather than naming a route, tolerate a form
+  with no branching fieldsets, and assert only that contact links are well formed
+- The check server resolves directory routes, so `/guides/` serves index.html
+- `sync:kit` finds the kit from `utilities/<name>/` as well as the workspace root
+
 ## 0.2.0
 
 - Multi-page validation via `--pages=`, including per-page meta descriptions and

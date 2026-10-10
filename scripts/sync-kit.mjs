@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cp, mkdir, readFile, rm, writeFile, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +28,17 @@ async function versionFrom(source) {
 }
 
 async function main() {
-  const source = arg('from') || process.env.TSW_KIT_SRC || resolve(ROOT, '..', 'tsw-kit');
+  // Sites sit at the workspace root, so `../tsw-kit` is right for them. A utility
+  // lives one level deeper at utilities/<name>/, where the same relative path
+  // points at utilities/tsw-kit and does not exist, so walk up until the kit is
+  // found or the filesystem runs out.
+  const candidates = [
+    resolve(ROOT, '..', 'tsw-kit'),
+    resolve(ROOT, '..', '..', 'tsw-kit'),
+    resolve(ROOT, '..', '..', '..', 'tsw-kit')
+  ];
+  const nearest = candidates.find((dir) => existsSync(join(dir, 'index.js')));
+  const source = arg('from') || process.env.TSW_KIT_SRC || nearest || candidates[0];
   const src = resolve(source);
 
   if (!(await exists(join(src, 'index.js')))) {

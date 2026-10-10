@@ -54,6 +54,29 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 
+// Shared by the scripted and the no-scripted pass. Values have to satisfy
+// native validation: a required type="email" field filled with plain text blocks
+// the submit, which reads as a broken site rather than a broken test.
+const VALUES = {
+  business_name: 'Verification Plumbing',
+  name: 'Verification User',
+  who: 'Verification User',
+  organisation: 'Verification Ltd',
+  email: 'verify@example.com',
+  message: 'End to end check of the deployed intake endpoint.'
+};
+const GENERIC = 'Verification Value';
+
+const valueFor = (name, type) => {
+  if (name === 'tsw_website_url' || name === 'website_url') return '';
+  if (VALUES[name]) return VALUES[name];
+  if (type === 'url') return 'https://example.com';
+  if (type === 'email') return VALUES.email;
+  if (type === 'tel') return '+15550100';
+  if (type === 'number') return '1';
+  return GENERIC;
+};
+
 const results = [];
 const note = (m) => console.log(`  . ${m}`);
 const check = (name, pass, detail = '') => {
@@ -277,23 +300,7 @@ if (formRoute) {
   });
   check('intake form has submittable controls', shape.names.length > 0, shape.names.join(','));
 
-  const VALUES = {
-    business_name: 'Verification Plumbing',
-    name: 'Verification User',
-    email: 'verify@example.com',
-    message: 'End to end check of the deployed intake endpoint.'
-  };
-  const fillFor = (name, type) => {
-    // Never fill the honeypot. A filled trap makes the kit believe it is being
-    // automated, and it fakes success without sending anything, which looks
-    // exactly like a working submission.
-    if (name === 'tsw_website_url' || name === 'website_url') return '';
-    if (VALUES[name]) return VALUES[name];
-    if (name === shape.message) return VALUES.message;
-    if (type === 'url') return 'https://example.com';
-    if (type === 'email') return VALUES.email;
-    return 'Verification Value';
-  };
+  const fillFor = (name, type) => valueFor(name, type) || (name === shape.message ? VALUES.message : '');
   for (const el of await page.$$('form[is="tsw-form"] input:not([type=hidden]):not([type=radio]):not([type=checkbox]), form[is="tsw-form"] select, form[is="tsw-form"] textarea')) {
     const info = await el.evaluate((n) => ({ name: n.name, type: n.type, visible: n.getBoundingClientRect().height > 0, disabled: n.disabled }));
     if (!info.name || !info.visible || info.disabled) continue;
@@ -331,6 +338,19 @@ if (formRoute) {
 for (const route of PAGES) {
   const noJsCtx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
   const noJs = await noJsCtx.newPage();
+  // The fill loop runs in the page, so the value table has to be handed over
+  // rather than closed over.
+  await noJs.addInitScript((payload) => {
+    window.__tswValueFor = (name, type) => {
+      if (name === 'tsw_website_url' || name === 'website_url') return '';
+      if (payload.values[name]) return payload.values[name];
+      if (type === 'url') return 'https://example.com';
+      if (type === 'email') return payload.values.email;
+      if (type === 'tel') return '+15550100';
+      if (type === 'number') return '1';
+      return payload.generic;
+    };
+  }, { values: VALUES, generic: GENERIC });
   await noJs.goto(`${base}${route}`, { waitUntil: 'load' });
   await noJs.waitForTimeout(400);
 
@@ -399,23 +419,23 @@ for (const route of PAGES) {
 
       // Satisfy every required control, whatever the branch state ends up being.
       // With scripting off every branch fieldset is visible, so they all count.
-      const placeholder = 'Verification Value';
       for (const group of [...new Set([...f.querySelectorAll('input[type="radio"][required]')].map((r) => r.name))]) {
         const options = [...f.querySelectorAll(`input[type="radio"][name="${group}"]`)];
         const on = options.find((o) => o.checked);
         if (!on && options[0]) options[0].checked = true;
       }
       for (const el of f.querySelectorAll('input:not([type=radio]):not([type=hidden]), select, textarea')) {
-        if (el.type === 'url') el.value = 'https://example.com';
-        else if (el.name === 'message') el.value = 'Verifying the no-script submit path.';
-        else if (el.value === '' && el.required) el.value = placeholder;
+        if (el.name === 'tsw_website_url' || el.name === 'website_url') continue;
+        if (el.value !== '' || !el.required) continue;
+        el.value = window.__tswValueFor(el.name, el.type);
       }
       f.querySelector('button[type="submit"]').click();
     });
     await noJs.waitForTimeout(1200);
 
     const decoded = posted ? decodeURIComponent(posted.replace(/\+/g, ' ')) : '';
-    check(`${route} no-JS: submit reaches the endpoint`, decoded.includes('Verification Value'),
+    check(`${route} no-JS: submit reaches the endpoint`,
+      [...Object.values(VALUES), GENERIC].some((v) => decoded.includes(v)),
       decoded.slice(0, 70) || 'nothing posted');
     check(`${route} no-JS: body is urlencoded form data`,
       Boolean(posted) && /^[a-z_]+=/.test(posted) && !posted.trim().startsWith('{'),

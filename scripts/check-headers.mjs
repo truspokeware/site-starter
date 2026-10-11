@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Assert that the security headers in _headers actually reach the browser.
 //
-// Reading the _headers file proves nothing. Cloudflare Pages honours only the
-// last matching block per path, and an earlier version of this template had two
-// /* blocks: the file looked complete and every deployed site shipped with no
-// CSP at all. This checks the wire.
+// Reading the _headers file proves nothing. Cloudflare Pages applies every block
+// whose pattern matches the path and concatenates repeated headers, so what the
+// wire returns is not simply the last block. An earlier version of this template
+// had two /* blocks, the file looked complete, and every deployed site shipped
+// with no CSP at all. This checks the wire.
 //
 //   node scripts/check-headers.mjs https://my-site.pages.dev
 //
@@ -20,11 +21,11 @@ const EXPECTED = [
   ['permissions-policy', (v) => v.length > 0]
 ];
 
-// A year-long cache on an unhashed URL means a deploy cannot reach anyone who
-// has already loaded the site. `immutable` asserts the name changes when the
-// contents do, and with no build step it never does. This ships broken silently,
-// so it is asserted on the wire rather than left to review.
-const REVALIDATES = /max-age=0|no-store|must-revalidate/;
+// A long cache on an unhashed URL means a deploy cannot reach anyone who has
+// already loaded the site. `immutable` asserts the name changes when the contents
+// do, and with no build step it never does. This ships broken silently, so it is
+// asserted on the wire rather than left to review.
+const REVALIDATES = /max-age=0\b|no-store|no-cache/;
 const CACHE_PATHS = ['/assets/site.css', '/assets/site.js', '/vendor/tsw-kit/index.js'];
 
 const base = process.argv[2] || process.env.TSW_BASE;
@@ -76,8 +77,8 @@ for (const path of PATHS) {
 
 if (failures) {
   console.error(`\n${failures} header check(s) failed.`);
-  console.error('If the file looks right but these fail, check for more than one matching');
-  console.error('path block in _headers. Cloudflare Pages only honours the last one.');
+  console.error('If the file looks right but these fail, remember that Cloudflare Pages');
+  console.error('concatenates the headers from every matching path block in _headers.');
   process.exit(1);
 }
 console.log('all security headers present');

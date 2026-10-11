@@ -403,23 +403,28 @@ for (const f of ['robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'assets/si
 // Cache policy, checked statically.
 //
 // No build step and no content hashing means a deploy edits a file behind a URL
-// that does not change. Serving that with `immutable` or a year-long max-age
-// tells every browser and the Cloudflare edge that the old copy is correct
-// forever, and the site silently stops updating for anyone who has visited
-// before. It shipped on the utility site and no test could see it, because the
-// test server sends no-store.
+// that does not change. Serving that with `immutable` or any max-age tells every
+// browser and the Cloudflare edge that the old copy is correct, and the site
+// silently stops updating for anyone who has visited before. It shipped on the
+// utility site and no test could see it, because the test server sends no-store
+// and the suite ran against the working tree.
+//
+// Cloudflare Pages concatenates Cache-Control from every block whose pattern
+// matches the path, so overlapping patterns stack rather than override. Each
+// block is checked on its own.
 {
   const headers = await read('_headers');
-  const blocks = [...headers.matchAll(/^(\S+)[\s\S]*?^\s*Cache-Control:\s*(.+)$/gm)];
-  for (const [, path, value] of blocks) {
-    if (!path.startsWith('/assets/') && !path.startsWith('/vendor/')) continue;
-    // Images and fonts keep their week; nothing about those changes at deploy time.
-    if (path.includes('/brand/') || /\.(svg|png|ico|webp|woff2?)$/.test(path)) continue;
-    if (/immutable/i.test(value) || /max-age=\d{7,}/.test(value)) {
-      fail(`${path} is cached for a year at a URL whose contents can change. Use max-age=0, must-revalidate.`);
+  const blocks = headers.split(/\n(?=\/)/).filter((b) => b.startsWith('/'));
+  for (const block of blocks) {
+    const path = block.match(/^(\S+)/)[1];
+    const cc = block.match(/Cache-Control:\s*(.+)/i);
+    if (!cc) continue;
+    const value = cc[1].trim();
+    if (/immutable/i.test(value) || !/max-age=0\b|no-store|no-cache/.test(value)) {
+      fail(`${path} sets Cache-Control: ${value}. Nothing here is content-hashed; use max-age=0, must-revalidate.`);
     }
   }
-  note('no unhashed asset is served with a year-long immutable cache');
+  note('every header block revalidates');
 }
 
 try {

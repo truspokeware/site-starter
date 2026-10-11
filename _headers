@@ -1,23 +1,27 @@
-# One /* block, deliberately.
+# One block. One Cache-Control for the whole site.
 #
-# Cloudflare Pages honours only the LAST matching block for a given path. An
-# earlier version of this file ended with a second /* block carrying nothing but
-# Cache-Control, which silently discarded the entire security header set above it.
-# Every deployed site still had the right text in the file and none of the headers
-# on the wire. `npm run check:headers` asserts the live response, not this file.
+# Cloudflare Pages applies every block whose pattern matches the path and
+# concatenates a header that appears in more than one of them. Overlapping
+# patterns stack rather than override: a /* rule plus an /assets/* rule made
+# /assets/site.css come back as
+#   Cache-Control: public, max-age=0, must-revalidate, public, max-age=0, must-revalidate
+# Two blocks with the SAME pattern do replace each other, which is how an earlier
+# version of this file (a second /* carrying only Cache-Control) silently dropped
+# every security header above it, with the text still on disk and none of it on
+# the wire. `npm run check:headers` asserts the live response, not this file.
 #
-# Nothing is cached for a year. `immutable` promises that a URL changes when its
-# contents do, and this site has no build step and no content hashing, so a deploy
-# that edits site.css ships the same /assets/site.css URL. Browsers and
-# Cloudflare both take that promise literally, so the old file stays correct
-# forever and no deploy can reach anyone who already loaded the site.
+# So there is one block and nothing overrides anything: the whole site
+# revalidates. Nothing here is content-hashed, so a year-long cache would mean a
+# deploy that edits site.css ships the same URL and no returning visitor ever
+# sees it. That shipped: the utility site served a months-old scanner whose
+# button was dead and whose camera never opened, while ninety tests passed
+# against the working tree. Revalidation is one conditional request per load, and
+# it is the only policy under which deploying without a build step is safe.
 #
-# That shipped: the utility site served a months-old scanner to returning
-# visitors, whose button was dead and whose camera never opened, while ninety
-# tests passed against the working tree. Revalidating is one conditional request
-# per load and it is the only policy that makes deploying without a build step
-# safe. The rule: max-age=0, must-revalidate on anything whose URL survives a
-# deploy, and immutable only behind a content hash.
+# The zone's Browser Cache TTL was also set to 4 hours, which overrides this
+# header for anything Cloudflare considers cacheable. It is set to "Respect
+# Existing Headers" so that this value is the one that reaches the browser. See
+# docs/decisions.md.
 
 /*
   X-Content-Type-Options: nosniff
@@ -29,21 +33,3 @@
   Cross-Origin-Resource-Policy: same-origin
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Cache-Control: public, max-age=0, must-revalidate
-
-/vendor/*
-  Cache-Control: public, max-age=0, must-revalidate
-
-/assets/*
-  Cache-Control: public, max-age=0, must-revalidate
-
-/assets/brand/*
-  Cache-Control: public, max-age=604800
-
-/*.svg
-  Cache-Control: public, max-age=604800
-
-/.well-known/*
-  Cache-Control: public, max-age=3600
-
-/llms.txt
-  Cache-Control: public, max-age=86400

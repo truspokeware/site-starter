@@ -20,6 +20,13 @@ const EXPECTED = [
   ['permissions-policy', (v) => v.length > 0]
 ];
 
+// A year-long cache on an unhashed URL means a deploy cannot reach anyone who
+// has already loaded the site. `immutable` asserts the name changes when the
+// contents do, and with no build step it never does. This ships broken silently,
+// so it is asserted on the wire rather than left to review.
+const REVALIDATES = /max-age=0|no-store|must-revalidate/;
+const CACHE_PATHS = ['/assets/site.css', '/assets/site.js', '/vendor/tsw-kit/index.js'];
+
 const base = process.argv[2] || process.env.TSW_BASE;
 
 if (!base) {
@@ -29,7 +36,7 @@ if (!base) {
 
 // Every asset path is a different matching block in _headers, so check the most
 // security-relevant responses rather than just the home page.
-const PATHS = ['/', '/privacy'];
+const PATHS = ['/', '/privacy', ...CACHE_PATHS];
 
 let failures = 0;
 for (const path of PATHS) {
@@ -53,6 +60,18 @@ for (const path of PATHS) {
     }
   }
   if (failures === 0) console.log(`ok    ${url} carries all ${EXPECTED.length} security headers`);
+
+  if (CACHE_PATHS.includes(path)) {
+    const value = res.headers.get('cache-control') || '';
+    if (!REVALIDATES.test(value)) {
+      console.error(`FAIL  ${path} does not revalidate: ${value || '(no Cache-Control)'}`);
+      console.error('      Nothing here is content-hashed, so a year-long cache means the next');
+      console.error('      deploy cannot reach anyone who has already loaded this site.');
+      failures++;
+    } else {
+      console.log(`ok    ${path} revalidates: ${value}`);
+    }
+  }
 }
 
 if (failures) {

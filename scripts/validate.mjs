@@ -400,6 +400,28 @@ for (const f of ['robots.txt', 'sitemap.xml', 'llms.txt', '_headers', 'assets/si
   if (!(await exists(f))) fail(`missing required file: ${f}`);
 }
 
+// Cache policy, checked statically.
+//
+// No build step and no content hashing means a deploy edits a file behind a URL
+// that does not change. Serving that with `immutable` or a year-long max-age
+// tells every browser and the Cloudflare edge that the old copy is correct
+// forever, and the site silently stops updating for anyone who has visited
+// before. It shipped on the utility site and no test could see it, because the
+// test server sends no-store.
+{
+  const headers = await read('_headers');
+  const blocks = [...headers.matchAll(/^(\S+)[\s\S]*?^\s*Cache-Control:\s*(.+)$/gm)];
+  for (const [, path, value] of blocks) {
+    if (!path.startsWith('/assets/') && !path.startsWith('/vendor/')) continue;
+    // Images and fonts keep their week; nothing about those changes at deploy time.
+    if (path.includes('/brand/') || /\.(svg|png|ico|webp|woff2?)$/.test(path)) continue;
+    if (/immutable/i.test(value) || /max-age=\d{7,}/.test(value)) {
+      fail(`${path} is cached for a year at a URL whose contents can change. Use max-age=0, must-revalidate.`);
+    }
+  }
+  note('no unhashed asset is served with a year-long immutable cache');
+}
+
 try {
   const robots = await read('robots.txt');
   for (const agent of ['OAI-SearchBot', 'PerplexityBot', 'ClaudeBot', 'Googlebot']) {
